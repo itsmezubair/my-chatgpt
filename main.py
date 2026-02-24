@@ -41,17 +41,14 @@ SYSTEM_PROMPT = {
     )
 }
 
-def ask_agent_stream(history):
+
+def ask_agent_full(history):
     try:
-        stream = client.chat.completions.create(
+        response = client.chat.completions.create(
             model="openai/gpt-4o-mini",
             messages=[SYSTEM_PROMPT] + history,
-            stream=True
         )
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        return response.choices[0].message.content
     except Exception as e:
-        print("[ERROR] in ask_agent_stream:", str(e))
-        yield f"Error: {str(e)}"
+        print("[ERROR]", str(e))
+        return f"Error: {str(e)}"

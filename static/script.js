@@ -16,15 +16,8 @@ const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 
 // ── Mobile sidebar helpers ────────────────────────────────────────────────────
 function isMobile() { return window.innerWidth <= 640; }
-
-function openSidebar() {
-  sidebar.classList.add('open');
-  sidebarBackdrop.classList.add('show');
-}
-function closeSidebar() {
-  sidebar.classList.remove('open');
-  sidebarBackdrop.classList.remove('show');
-}
+function openSidebar()  { sidebar.classList.add('open'); sidebarBackdrop.classList.add('show'); }
+function closeSidebar() { sidebar.classList.remove('open'); sidebarBackdrop.classList.remove('show'); }
 
 function updateMobileNav() {
   if (!isMobile()) return;
@@ -39,10 +32,7 @@ function updateMobileNav() {
 
 hamburgerBtn.addEventListener('click', openSidebar);
 sidebarBackdrop.addEventListener('click', closeSidebar);
-backBtn.addEventListener('click', () => {
-  openSidebar();
-});
-
+backBtn.addEventListener('click', openSidebar);
 window.addEventListener('resize', updateMobileNav);
 
 // ── Custom confirm modal ──────────────────────────────────────────────────────
@@ -64,9 +54,7 @@ function showDeleteModal() {
   });
 }
 
-let activeSessionId = null;
-
-// ── Status ───────────────────────────────────────────────────────────────────
+// ── Status ────────────────────────────────────────────────────────────────────
 function setStatus(online = true) {
   if (online) {
     statusDot.classList.replace('offline', 'online');
@@ -78,20 +66,35 @@ function setStatus(online = true) {
 }
 setStatus(true);
 
+// ── LocalStorage session management ──────────────────────────────────────────
+let activeSessionId = null;
+let currentHistory  = [];   // [{role, content}] sent to server
+
+function getSessions() {
+  return JSON.parse(localStorage.getItem('sessions') || '[]');
+}
+function saveSession(sid, title, messages) {
+  const sessions = getSessions().filter(s => s.id !== sid);
+  sessions.unshift({ id: sid, title, created_at: new Date().toISOString(), messages });
+  localStorage.setItem('sessions', JSON.stringify(sessions));
+}
+function deleteSessionLS(sid) {
+  const sessions = getSessions().filter(s => s.id !== sid);
+  localStorage.setItem('sessions', JSON.stringify(sessions));
+}
+function genId() { return Math.random().toString(36).slice(2, 10); }
+
 // ── Message helpers ───────────────────────────────────────────────────────────
 function appendMessage(kind, text = '') {
   const d = document.createElement('div');
   d.className = `msg ${kind}`;
-
   const contentSpan = document.createElement('span');
   contentSpan.className = 'msg-content';
   contentSpan.innerText = text;
-
   const meta = document.createElement('span');
   meta.className = 'meta';
   const t = new Date();
   meta.innerText = `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`;
-
   d.appendChild(contentSpan);
   d.appendChild(meta);
   chatBox.appendChild(d);
@@ -101,8 +104,7 @@ function appendMessage(kind, text = '') {
 
 function showTyping() {
   const t = document.createElement('div');
-  t.className = 'typing';
-  t.id = '__typing';
+  t.className = 'typing'; t.id = '__typing';
   t.innerHTML = '<span class="dotx"></span><span class="dotx"></span><span class="dotx"></span>';
   chatBox.appendChild(t);
   chatBox.scrollTop = chatBox.scrollHeight;
@@ -110,17 +112,15 @@ function showTyping() {
 }
 
 // ── Session sidebar ───────────────────────────────────────────────────────────
-async function loadSessionList() {
-  const res = await fetch('/sessions');
-  const sessions = await res.json();
+function loadSessionList() {
+  const sessions = getSessions();
   sessionList.innerHTML = '';
   sessions.forEach(s => {
     const el = document.createElement('div');
     el.className = 'session-item' + (s.id === activeSessionId ? ' active' : '');
-    el.dataset.id = s.id;
 
     const date = new Date(s.created_at);
-    const dateStr = isNaN(date) ? '' : date.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+    const dateStr = isNaN(date) ? '' : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
     const info = document.createElement('div');
     info.className = 'session-info';
@@ -135,10 +135,12 @@ async function loadSessionList() {
       e.stopPropagation();
       const confirmed = await showDeleteModal();
       if (!confirmed) return;
-      await fetch(`/session/${s.id}`, { method: 'DELETE' });
+      deleteSessionLS(s.id);
       if (activeSessionId === s.id) {
         activeSessionId = null;
+        currentHistory = [];
         chatBox.innerHTML = '';
+        updateMobileNav();
       }
       loadSessionList();
     });
@@ -149,16 +151,14 @@ async function loadSessionList() {
   });
 }
 
-async function openSession(sid) {
-  const res = await fetch(`/session/${sid}`);
-  const data = await res.json();
+function openSession(sid) {
+  const sessions = getSessions();
+  const s = sessions.find(x => x.id === sid);
+  if (!s) return;
   activeSessionId = sid;
+  currentHistory = s.messages.slice(); // restore history
   chatBox.innerHTML = '';
-
-  data.messages.forEach(m => {
-    appendMessage(m.role === 'user' ? 'user' : 'bot', m.content);
-  });
-
+  s.messages.forEach(m => appendMessage(m.role === 'user' ? 'user' : 'bot', m.content));
   if (isMobile()) closeSidebar();
   updateMobileNav();
   loadSessionList();
@@ -168,6 +168,12 @@ async function openSession(sid) {
 async function sendMessage() {
   const text = userInput.value.trim();
   if (!text) return;
+
+  // Start new session if none
+  if (!activeSessionId) {
+    activeSessionId = genId();
+    currentHistory = [];
+  }
 
   appendMessage('user', text);
   userInput.value = '';
@@ -180,37 +186,24 @@ async function sendMessage() {
     const res = await fetch('/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: text })
+      body: JSON.stringify({ prompt: text, history: currentHistory })
     });
 
+    const json = await res.json();
     typingEl.remove();
-    const botContent = appendMessage('bot', '');
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    const reply = json?.response ?? 'No response';
+    appendMessage('bot', reply);
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
+    // Update history
+    currentHistory.push({ role: 'user', content: text });
+    currentHistory.push({ role: 'assistant', content: reply });
 
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const json = JSON.parse(line.slice(6));
-        if (json.chunk) {
-          botContent.innerText += json.chunk;
-          chatBox.scrollTop = chatBox.scrollHeight;
-        }
-        if (json.done) {
-          activeSessionId = json.session_id;
-          updateMobileNav();
-          loadSessionList();
-        }
-      }
-    }
+    // Save to localStorage
+    const title = currentHistory[0].content.slice(0, 40);
+    saveSession(activeSessionId, title, currentHistory);
+    updateMobileNav();
+    loadSessionList();
 
   } catch (err) {
     typingEl.remove();
@@ -223,9 +216,9 @@ async function sendMessage() {
 }
 
 // ── New chat ──────────────────────────────────────────────────────────────────
-async function startNewChat() {
-  await fetch('/new', { method: 'POST' });
+function startNewChat() {
   activeSessionId = null;
+  currentHistory = [];
   chatBox.innerHTML = '';
   if (isMobile()) closeSidebar();
   updateMobileNav();
@@ -233,10 +226,10 @@ async function startNewChat() {
   loadSessionList();
 }
 
-// ── Clear (new chat alias) ────────────────────────────────────────────────────
-async function clearChat() {
-  await fetch('/clear', { method: 'POST' });
+// ── Clear ─────────────────────────────────────────────────────────────────────
+function clearChat() {
   activeSessionId = null;
+  currentHistory = [];
   chatBox.innerHTML = '';
   updateMobileNav();
   userInput.focus();
