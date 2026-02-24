@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Zubair's — AI Agent</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="left-decor"></div>
+    <div class="right-decor"></div>
+
+    <div class="layout">
+
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <button id="newChatBtn" class="btn-new">+ New Chat</button>
+        <div class="sidebar-label">History</div>
+        <div id="sessionList" class="session-list"></div>
+      </aside>
+
+      <!-- Main App -->
+      <main class="app">
+        <header class="app-header">
+          <div class="brand">
+            <div class="logo">ZA</div>
+            <div class="title">
+              <div class="name">Zubair's Gpt</div>
+              <div class="sub">Zubair AI Agent • Terminal → Web</div>
+            </div>
+          </div>
+          <div class="status">
+            <span id="statusDot" class="dot offline"></span>
+            <span id="statusText">Disconnected</span>
+          </div>
+        </header>
+
+        <section id="chatBox" class="chat-box" aria-live="polite"></section>
+
+        <div class="composer">
+          <div class="prompt">
+            <span class="prompt-icon">›</span>
+            <input id="userInput" autocomplete="off" placeholder="Type a command or question..."/>
+          </div>
+          <div class="controls">
+            <button id="sendBtn" class="btn-glow">SEND</button>
+            <button id="clearBtn" class="btn-minor">CLEAR</button>
+          </div>
+        </div>
+      </main>
+
+    </div>
+
+    <footer class="footer">
+      <small>NeonDev • local • <span id="uptime">ready</span></small>
+    </footer>
+  </div>
+
+  <!-- Custom Delete Confirm Modal -->
+  <div id="deleteModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-icon">🗑</div>
+      <div class="modal-title">Delete Chat?</div>
+      <div class="modal-msg">This conversation will be permanently removed and cannot be recovered.</div>
+      <div class="modal-actions">
+        <button id="modalCancel" class="modal-btn cancel">Cancel</button>
+        <button id="modalConfirm" class="modal-btn confirm">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/script.js" defer></script>
+</body>
+</html>
