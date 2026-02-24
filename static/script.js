@@ -1,14 +1,49 @@
-const sendBtn      = document.getElementById('sendBtn');
-const clearBtn     = document.getElementById('clearBtn');
-const newChatBtn   = document.getElementById('newChatBtn');
-const userInput    = document.getElementById('userInput');
-const chatBox      = document.getElementById('chatBox');
-const statusDot    = document.getElementById('statusDot');
-const statusText   = document.getElementById('statusText');
-const sessionList  = document.getElementById('sessionList');
-const deleteModal  = document.getElementById('deleteModal');
-const modalCancel  = document.getElementById('modalCancel');
-const modalConfirm = document.getElementById('modalConfirm');
+const sendBtn         = document.getElementById('sendBtn');
+const clearBtn        = document.getElementById('clearBtn');
+const newChatBtn      = document.getElementById('newChatBtn');
+const userInput       = document.getElementById('userInput');
+const chatBox         = document.getElementById('chatBox');
+const statusDot       = document.getElementById('statusDot');
+const statusText      = document.getElementById('statusText');
+const sessionList     = document.getElementById('sessionList');
+const deleteModal     = document.getElementById('deleteModal');
+const modalCancel     = document.getElementById('modalCancel');
+const modalConfirm    = document.getElementById('modalConfirm');
+const hamburgerBtn    = document.getElementById('hamburgerBtn');
+const backBtn         = document.getElementById('backBtn');
+const sidebar         = document.getElementById('sidebar');
+const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+// ── Mobile sidebar helpers ────────────────────────────────────────────────────
+function isMobile() { return window.innerWidth <= 640; }
+
+function openSidebar() {
+  sidebar.classList.add('open');
+  sidebarBackdrop.classList.add('show');
+}
+function closeSidebar() {
+  sidebar.classList.remove('open');
+  sidebarBackdrop.classList.remove('show');
+}
+
+function updateMobileNav() {
+  if (!isMobile()) return;
+  if (activeSessionId || chatBox.children.length > 0) {
+    backBtn.classList.add('show');
+    hamburgerBtn.classList.add('hidden');
+  } else {
+    backBtn.classList.remove('show');
+    hamburgerBtn.classList.remove('hidden');
+  }
+}
+
+hamburgerBtn.addEventListener('click', openSidebar);
+sidebarBackdrop.addEventListener('click', closeSidebar);
+backBtn.addEventListener('click', () => {
+  openSidebar();
+});
+
+window.addEventListener('resize', updateMobileNav);
 
 // ── Custom confirm modal ──────────────────────────────────────────────────────
 function showDeleteModal() {
@@ -124,6 +159,8 @@ async function openSession(sid) {
     appendMessage(m.role === 'user' ? 'user' : 'bot', m.content);
   });
 
+  if (isMobile()) closeSidebar();
+  updateMobileNav();
   loadSessionList();
 }
 
@@ -169,6 +206,7 @@ async function sendMessage() {
         }
         if (json.done) {
           activeSessionId = json.session_id;
+          updateMobileNav();
           loadSessionList();
         }
       }
@@ -189,6 +227,8 @@ async function startNewChat() {
   await fetch('/new', { method: 'POST' });
   activeSessionId = null;
   chatBox.innerHTML = '';
+  if (isMobile()) closeSidebar();
+  updateMobileNav();
   userInput.focus();
   loadSessionList();
 }
@@ -198,6 +238,7 @@ async function clearChat() {
   await fetch('/clear', { method: 'POST' });
   activeSessionId = null;
   chatBox.innerHTML = '';
+  updateMobileNav();
   userInput.focus();
   loadSessionList();
 }

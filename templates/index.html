@@ -13,8 +13,11 @@
 
     <div class="layout">
 
+      <!-- Mobile sidebar backdrop -->
+      <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
       <!-- Sidebar -->
-      <aside class="sidebar">
+      <aside id="sidebar" class="sidebar">
         <button id="newChatBtn" class="btn-new">+ New Chat</button>
         <div class="sidebar-label">History</div>
         <div id="sessionList" class="session-list"></div>
@@ -24,6 +27,10 @@
       <main class="app">
         <header class="app-header">
           <div class="brand">
+            <!-- Back arrow (mobile only, when chat is open) -->
+            <button id="backBtn" class="back-btn" title="Back">&#8592;</button>
+            <!-- Hamburger (mobile only) -->
+            <button id="hamburgerBtn" class="hamburger-btn" title="History">&#9776;</button>
             <div class="logo">ZA</div>
             <div class="title">
               <div class="name">Zubair's Gpt</div>
